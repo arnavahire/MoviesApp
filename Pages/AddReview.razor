@@ -1,0 +1,129 @@
+@using MoviesApp.Models
+@using MoviesApp.Data
+
+@page "/addReview"
+
+@inject NavigationManager NavigationManager
+@inject MoviesRepository Repository
+@inject IJSRuntime JSRuntime
+
+@if(movies is null)
+{
+    <p>Loading...</p>
+}
+else{
+    <PageTitle>@pageTitle</PageTitle>
+    <h3>@pageTitle</h3>
+
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm Model="@review" FormName="addReview" OnValidSubmit="HandleSubmitAsync">
+                <DataAnnotationsValidator /> @* support for data annotations validator on UI *@
+                <ValidationSummary />
+                <div class="form-floating mb-3">
+                    <select id="movieTitleDropdown" class="form-select" @onchange="OnMovieSelected"> @* Always use form-select for dropdowns. form-control is suitable for text boxes and input boxes*@
+                        <option value="Select Movie">Select Movie</option> @* Using select instead of InputSelect since I do not want to bind this value to review model. Bind value only works if you are binding it to current model. Otherwise InputSelect dropdown won't function properly *@
+                        @foreach (var movie in movies)
+                        {
+                            <option value="@movie.Title">@movie.Title</option>
+                        }
+                    </select>
+                    <label for="movieTitleDropdown">Movie Title</label> @* always write the label after the dropdown. Otherwise it won't populate correctly*@
+                </div>
+                @if(movieSelected)
+                {
+                    <div class="form-floating mb-3">
+                        <InputText class="form-control" id="reviewerName" @bind-Value="review.ReviewerName"/>
+                        <label for="name">Reviewer name:</label>
+                        <ValidationMessage For="() => review.ReviewerName" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText class="form-control" id="comment" @bind-Value="review.Comment"/>
+                        <label for="name">Comment:</label>
+                        <ValidationMessage For="() => review.Comment" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputSelect id="rating" @bind-Value="review.Rating" class="form-select"> @* Always use form-select for dropdowns. form-control is suitable for text boxes and input boxes*@
+                            <option value="0">Select Rating</option> @* The options are 1-10 but Select Rating is a string. To convert it to an int we can have value=0. so that Select Rating shows up on the page since it's mapped to 0 which is an integer *@
+                            @for (int i = 1; i <= 10; i++)
+                            {
+                                <option value="@i">@i</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => review.Rating" />
+                        <label for="name">Rating</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a role="button" class="btn btn-outline-secondary" href="/">Cancel</a>
+                }
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private string? pageTitle;
+
+    private List<Movie>? movies;
+
+    private string selectedMovieTitle;
+
+    private Movie? selectedMovie;
+
+    private Boolean movieSelected;
+
+    private Review review;
+
+    protected override async Task OnInitializedAsync()
+    {
+        movies = await Repository.GetMoviesAsync();
+        pageTitle = "Add Review: ";
+        selectedMovieTitle = "Select Movie"; // Matches placeholder
+        movieSelected = false;
+        review = new();
+    }
+
+    private async Task OnMovieSelected(ChangeEventArgs args)
+    {
+        Console.WriteLine("OnMovieSelected triggered");  // This will appear in the server-side log (if using Blazor Server)
+        await LogToConsole($"in OnMovieSelected.");
+        // Update selectedMovieTitle based on the dropdown selection
+        selectedMovieTitle = args.Value?.ToString();
+        await LogToConsole($"Selected Movie: {selectedMovieTitle}");
+
+        if (!string.IsNullOrEmpty(selectedMovieTitle))
+        {
+            // Fetch movie details asynchronously
+            selectedMovie = await Repository.GetMovieByTitleAsync(selectedMovieTitle);
+
+            if (selectedMovie != null)
+            {
+                await LogToConsole($"Selected Title: {selectedMovie.Title}");
+                pageTitle = $"Add Review: {selectedMovieTitle}";
+                movieSelected = true;
+
+                // Populate review fields with selected movie details
+                review.Movie = selectedMovie;
+                review.MovieId = selectedMovie.Id;
+            }
+            else
+            {
+                Console.WriteLine($"No movie found for title: {selectedMovieTitle}");
+            }
+        }
+    }
+
+    private async Task LogToConsole(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("console.log", message); // To log messages on browser console
+    }
+
+    private async Task HandleSubmitAsync(){
+        if(movieSelected){
+            ArgumentNullException.ThrowIfNull(review);
+            await Repository.AddReviewAsync(review);
+        }
+        NavigationManager.NavigateTo("/");
+    }
+
+} 

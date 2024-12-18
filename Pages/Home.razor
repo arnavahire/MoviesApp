@@ -1,0 +1,94 @@
+@using MoviesApp.Data
+@using MoviesApp.Models
+@page "/"
+
+@inject NavigationManager NavigationManager
+@inject MoviesRepository Repository
+
+<PageTitle>Welcome to MoviesApp</PageTitle>
+
+<h1 class="text-center text-primary">Welcome to MoviesApp</h1>
+<p class="text-center">Explore movies and read reviews!</p>
+
+<div class="row">
+    @if(movies is null)
+    {
+        <p class="text-center">Loading Movies...</p>
+    }
+    else if (!movies.Any())
+    {
+        <p class="text-center">No movies available. Be the first to add one!</p>
+        <button class="btn btn-success" @onclick="AddMovie">Add New Movie</button>
+    }
+    else
+    {
+        <div align="center" class="button-container">
+            <button class="btn btn-primary" @onclick="AddMovie">Add Movie</button>
+            <button class="btn btn-primary" @onclick="AddReview">Add Review</button>
+        </div>
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var movie in movies)
+            {
+                <div class="card text-center border border-white">
+                    <div class="card-header bg-info">
+                        <h5 class="card-title text-white">@movie.Title</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text"><strong>Director:</strong> @movie.Director</p>
+                        <p class="card-text"><strong>Release Date:</strong> @movie.ReleaseDate</p>
+                        <hr/>
+                        <h6>Reviews:</h6>
+                        <p class="card-text">
+                            <ul class="list-group list-group-flush">
+                                @foreach (var review in movie.Reviews)
+                                {
+                                    <li class="list-group-item"><strong>@review.ReviewerName</strong>: @review.Comment (@review.Rating/10)</li>
+                                }
+                            </ul>
+                        </p>
+                    </div>
+                    <div class="card-footer text-center">
+                        <button type="button" class="btn btn-info" @onclick="() => EditMovie(movie.Id)"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="@GetDeleteModalId(movie)"><i class="bi bi-trash"></i></button>
+                        <DeleteMovie Movie="@movie" />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Movie> movies = new();
+    private Movie newMovie = new();
+
+    private List<Review> reviews = new();
+    private bool isAddingMovie = false;
+
+    // OnInitializedAsyncis anasync method in Blazor web UI framework which gets called when the component gets initialized for the first time before rendering the UI
+    protected override async Task OnInitializedAsync()
+    {
+        movies = await Repository.GetMoviesAsync();
+        reviews = await Repository.GetReviewsAsync();
+    }
+
+    // ToggleAddForm controls the visibility of a form. Used to make a form appear or disappear using boolean flag.
+    private void ToggleAddForm() => isAddingMovie = !isAddingMovie;
+
+    private async Task AddMovie()
+    {
+        NavigationManager.NavigateTo("/addEditMovie");
+    }
+    private async Task AddReview()
+    {
+        NavigationManager.NavigateTo("/addReview");
+    }
+    private async Task EditMovie(int id)
+    {
+        NavigationManager.NavigateTo($"/addEditMovie/{id}");
+    }
+
+    private string GetDeleteModalId(Movie movie){
+        return $"#{DeleteMovie.GetModalId(movie)}"; // static method from the DeleteMovie component
+    }
+}

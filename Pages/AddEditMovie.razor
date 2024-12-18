@@ -1,0 +1,89 @@
+@using MoviesApp.Data
+@using MoviesApp.Models
+
+@page "/addEditMovie"
+@page "/addEditMovie/{id:int}"
+
+@inject NavigationManager NavigationManager
+@inject MoviesRepository Repository
+
+@if(movie is null)
+{
+    <p>Loading...</p>
+}
+else{
+    <PageTitle>@pageTitle</PageTitle>
+    <h3>@pageTitle</h3>
+
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm Model="@movie" FormName="addEditMovie" OnValidSubmit="HandleSubmitAsync">
+                <DataAnnotationsValidator /> @* support for data annotations validator on UI*@
+                <ValidationSummary />
+                <div class="form-floating mb-3">
+                    <InputText class="form-control" id="name" @bind-Value="movie.Title"/>
+                    <label for="name">Title:</label>
+                    <ValidationMessage For="() => movie.Title" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText class="form-control" id="director" @bind-Value="movie.Director"/>
+                    <label for="director">Director:</label>
+                    <ValidationMessage For="() => movie.Director" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputDate class="form-control" id="releaseDate" @bind-Value="movie.ReleaseDate"/>
+                    <label for="releaseDate">Release Date:</label>
+                    <ValidationMessage For="() => movie.ReleaseDate" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a role="button" class="btn btn-outline-secondary" href="/">Cancel</a>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] // this takes in the parameter from the url 
+    public int? Id { get; set; }
+    [SupplyParameterFromForm]
+    private Movie? movie { get; set; }
+
+    private string pageTitle;
+
+    private List<Review> reviews;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if(movie is not null)
+        {
+            return;
+        }
+
+        if(Id.HasValue)
+        {
+            movie = await Repository.GetMovieAsync(Id.Value);
+            pageTitle = $"Edit Movie: {movie.Title}";
+        }
+        else{
+            movie = new() { Title = string.Empty, ReleaseDate = DateOnly.FromDateTime(DateTime.UtcNow) };
+            pageTitle = $"Add New Movie:";
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        ArgumentNullException.ThrowIfNull(movie);
+        if(Id is null)
+        {
+            await Repository.AddMovieAsync(movie);
+        }
+        else
+        {
+            movie.Id = Id.Value;
+            await Repository.EditMovieAsync(movie);
+        }
+        NavigationManager.NavigateTo("/");
+    }
+
+    
+}
